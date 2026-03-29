@@ -407,12 +407,12 @@ function init() {
       document.getElementById('apiKeyInput').value    = state.apiKey;
       document.getElementById('apiBanner').style.display = 'none';
     }
-    showApp(); 
+    showLock(); 
   } else { showSetup(); }
 }
 
 function showSetup() { show('setupScreen'); hide('lockScreen'); hide('mainApp'); }
-function showApp() { show('lockScreen'); hide('setupScreen'); hide('mainApp'); state.isLocked = true; }
+function showLock() { show('lockScreen'); hide('setupScreen'); hide('mainApp'); state.isLocked = true; }
 function showApp() { hide('lockScreen'); hide('setupScreen'); document.getElementById('mainApp').style.display = 'flex'; state.isLocked = false; }
 function show(id) { document.getElementById(id).style.display = 'flex'; }
 function hide(id) { document.getElementById(id).style.display = 'none'; }
@@ -516,7 +516,7 @@ async function sendMessage() {
     addMsg('ai', reply);
   } catch (err) { 
     typing.remove(); 
-    addMsg('ai', `Network block detected. Your device blocked the chat connection. Try a VPN or local server app.`); 
+    addMsg('ai', `Network block detected. Your device blocked the chat connection.`); 
   }
 }
 
@@ -576,7 +576,7 @@ function clearPostImage() {
 }
 
 // ══════════════════════════════════════════════════════════
-// UPGRADED AI IMAGE GENERATOR - Uses Native Fallback Routing
+// UPGRADED AI IMAGE GENERATOR - Uses allorigins Proxy Fallback
 // ══════════════════════════════════════════════════════════
 function generateArtwork() {
   const rawPrompt = document.getElementById('imgPrompt').value.trim() || 'A high quality, cinematic and viral aesthetic graphic';
@@ -589,15 +589,16 @@ function generateArtwork() {
   overlay.style.display = 'flex';
   state.postImageBase64 = null; 
   state.postImageUrl = null;
-  textFeedback.textContent = "Connecting to server...";
+  textFeedback.textContent = "Connecting to AI...";
 
   const seed = Math.floor(Math.random() * 1000000);
   const cleanPrompt = encodeURIComponent(rawPrompt);
   
-  // URL 1: Direct approach
+  // The primary direct link
   const primaryUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
-  // URL 2: Proxy approach (bypass ISP block)
-  const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(primaryUrl)}`;
+  
+  // The heavy-duty fallback proxy that waits for the AI to finish
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(primaryUrl)}`;
 
   imgEl.onload = () => {
     overlay.style.display = 'none';
@@ -606,17 +607,16 @@ function generateArtwork() {
   };
 
   imgEl.onerror = () => {
-    // If the primary fails due to Android WebView block or ISP...
+    // If ISP drops primary, route to the proxy
     if (imgEl.src === primaryUrl) {
-      textFeedback.textContent = "Bypassing block...";
+      textFeedback.textContent = "ISP Blocked. Rerouting safely...";
       imgEl.src = proxyUrl;
     } else {
       overlay.style.display = 'none';
-      toast('Network severely restricted. Please try a VPN.', 'error');
+      toast('Network completely blocked. Please turn on a free VPN (like Cloudflare 1.1.1.1).', 'error');
     }
   };
 
-  // Start with primary
   imgEl.src = primaryUrl;
 }
 

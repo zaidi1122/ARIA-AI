@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — AI Assistant Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --bg: #080810;
+  --surface: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08);
+  --gold: #C9A86C;
+  --gold-dim: rgba(201,168,108,0.12);
+  --cyan: #4FC3F7;
+  --cyan-dim: rgba(79,195,247,0.12);
+  --red: #FF5252;
+  --text: #E8E8F0;
+  --text-dim: #8888A0;
+  --success: #69F0AE;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(79,195,247,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(79,195,247,0.025) 1px, transparent 1px);
+  background-size: 44px 44px; pointer-events: none; z-index: 0;
+}
+
+/* ══════ LOCK SCREEN ══════ */
+#lockScreen { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050508; gap: 28px; padding: 24px; }
+.lock-orb { width: 128px; height: 128px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #E8C27C, #7A5A1E); display: flex; align-items: center; justify-content: center; font-size: 44px; color: #050508; box-shadow: 0 0 70px rgba(201,168,108,0.45), 0 0 140px rgba(201,168,108,0.15); cursor: pointer; transition: transform 0.3s, box-shadow 0.3s; animation: orbPulse 3s ease-in-out infinite; }
+.lock-orb:hover { transform: scale(1.06); }
+@keyframes orbPulse { 0%, 100% { box-shadow: 0 0 70px rgba(201,168,108,0.45), 0 0 140px rgba(201,168,108,0.15); } 50% { box-shadow: 0 0 90px rgba(201,168,108,0.65), 0 0 180px rgba(201,168,108,0.25); } }
+.lock-title { font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 6px; text-transform: uppercase; background: linear-gradient(135deg, var(--gold), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.lock-subtitle { font-size: 13px; color: var(--text-dim); text-align: center; letter-spacing: 0.5px; line-height: 1.6; }
+#voiceWave { display: flex; gap: 5px; align-items: center; height: 44px; opacity: 0; transition: opacity 0.3s; }
+#voiceWave.active { opacity: 1; }
+#voiceWave span { display: block; width: 4px; border-radius: 2px; background: var(--gold); animation: wave 0.8s ease-in-out infinite; }
+#voiceWave span:nth-child(1){height:10px;animation-delay:0s} #voiceWave span:nth-child(2){height:22px;animation-delay:.1s} #voiceWave span:nth-child(3){height:32px;animation-delay:.2s} #voiceWave span:nth-child(4){height:26px;animation-delay:.3s} #voiceWave span:nth-child(5){height:16px;animation-delay:.4s} #voiceWave span:nth-child(6){height:32px;animation-delay:.5s} #voiceWave span:nth-child(7){height:22px;animation-delay:.6s} #voiceWave span:nth-child(8){height:12px;animation-delay:.7s}
+@keyframes wave { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(2.2); } }
+.lock-btn { padding: 14px 40px; border-radius: 50px; border: none; background: linear-gradient(135deg, var(--gold), #E8C07A); color: #080810; font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.3s; box-shadow: 0 0 32px rgba(201,168,108,0.32); }
+.lock-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 44px rgba(201,168,108,0.5); }
+#lockStatus { font-size: 13px; color: var(--text-dim); text-align: center; min-height: 20px; letter-spacing: 0.5px; transition: color 0.3s; }
+#lockStatus.error { color: var(--red); } #lockStatus.success { color: var(--success); }
+
+/* ══════ SETUP SCREEN ══════ */
+#setupScreen { position: fixed; inset: 0; z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; background: #050508; gap: 20px; padding: 24px; overflow-y: auto; }
+.setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; max-width: 480px; width: 100%; backdrop-filter: blur(20px); }
+.setup-logo { font-family: var(--font-display); font-size: 24px; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 6px; background: linear-gradient(135deg, var(--gold), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.setup-card h2 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 6px; color: var(--gold); }
+.setup-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.65; }
+.setup-input { width: 100%; padding: 13px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: var(--font-mono); font-size: 14px; outline: none; margin-bottom: 12px; transition: border-color 0.25s; }
+.setup-input:focus { border-color: var(--gold); }
+.setup-hint { font-size: 11px; color: var(--text-dim); margin: -6px 0 14px; line-height: 1.5; }
+.setup-hint a { color: var(--gold); }
+.setup-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--gold), #E8C07A); color: #080810; font-family: var(--font-display); font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.25s; }
+.setup-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* ══════ MAIN APP ══════ */
+#mainApp { display: none; flex-direction: column; min-height: 100vh; position: relative; z-index: 1; }
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.82); }
+.app-logo { display: flex; align-items: center; gap: 10px; }
+.logo-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px var(--gold); animation: blink 2.2s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.logo-text { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: 5px; background: linear-gradient(135deg, var(--gold), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.header-user { font-size: 12px; color: var(--text-dim); letter-spacing: 0.5px; }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.icon-btn { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+.icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+/* Nav */
+.nav-tabs { display: flex; gap: 4px; padding: 14px 24px 0; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tab { padding: 9px 18px; border-radius: 10px 10px 0 0; border: 1px solid transparent; border-bottom: none; background: none; color: var(--text-dim); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { background: var(--gold-dim); border-color: var(--border); color: var(--gold); border-bottom-color: var(--bg); }
+
+/* Tab Content */
+.tab-content { display: none; padding: 24px; animation: fadeIn 0.3s ease; flex: 1; }
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.section-title { font-family: var(--font-display); font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ══════ CHAT TAB ══════ */
+.chat-container { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 170px); }
+#chatMessages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+#chatMessages::-webkit-scrollbar { width: 3px; } #chatMessages::-webkit-scrollbar-track { background: transparent; } #chatMessages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.msg { display: flex; gap: 12px; animation: msgIn 0.28s ease; }
+@keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.msg.user { flex-direction: row-reverse; }
+.msg-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.msg.ai .msg-avatar { background: var(--gold-dim); color: var(--gold); } .msg.user .msg-avatar { background: var(--cyan-dim); color: var(--cyan); }
+.msg-bubble { max-width: 76%; padding: 13px 17px; border-radius: 16px; font-size: 14px; line-height: 1.65; }
+.msg.ai .msg-bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; color: var(--text); }
+.msg.user .msg-bubble { background: var(--gold-dim); border: 1px solid rgba(201,168,108,0.18); border-top-right-radius: 4px; color: var(--text); }
+.msg-img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+.typing-dots { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+.typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: dot 1.4s ease-in-out infinite; }
+.typing-dots span:nth-child(2){animation-delay:.2s} .typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot { 0%,80%,100%{transform:scale(0.75);opacity:0.4} 40%{transform:scale(1.2);opacity:1} }
+
+/* API Banner */
+.api-banner { background: rgba(201,168,108,0.07); border: 1px solid rgba(201,168,108,0.2); border-radius: 12px; padding: 13px 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+.api-banner-input { flex: 1; background: none; border: none; color: var(--text); font-family: var(--font-mono); font-size: 13px; outline: none; }
+.api-banner-btn { padding: 6px 16px; border-radius: 8px; border: 1px solid var(--gold); background: var(--gold-dim); color: var(--gold); font-size: 12px; cursor: pointer; font-family: var(--font-mono); transition: all 0.2s; }
+.api-banner-btn:hover { background: var(--gold); color: #080810; }
+
+/* Image Preview Box (Chat) */
+#imagePreviewContainer { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px; margin-top: 8px; position: relative; width: fit-content; }
+#imagePreview { max-height: 60px; border-radius: 6px; }
+.remove-img-btn { position: absolute; top: -8px; right: -8px; background: var(--red); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
+
+/* Chat Input */
+.chat-input-area { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.chat-controls { display: flex; gap: 10px; align-items: flex-end; }
+#chatInput { flex: 1; padding: 13px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text); font-family: var(--font-mono); font-size: 14px; outline: none; resize: none; height: 50px; max-height: 140px; overflow-y: auto; transition: border-color 0.2s; line-height: 1.5; }
+#chatInput:focus { border-color: var(--gold); }
+.send-btn { width: 50px; height: 50px; border-radius: 14px; border: none; background: linear-gradient(135deg, var(--gold), #E8C07A); color: #080810; font-size: 15px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.send-btn:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(201,168,108,0.4); }
+.voice-btn, .file-btn { width: 50px; height: 50px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font-size: 15px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.voice-btn:hover, .file-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+.voice-btn.listening { color: var(--red); border-color: var(--red); animation: pulseRed 1s ease-in-out infinite; }
+
+/* ══════ APPS TAB ══════ */
+.apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; margin-bottom: 32px; }
+.app-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px 14px; display: flex; flex-direction: column; align-items: center; gap: 11px; cursor: pointer; transition: all 0.22s; text-decoration: none; color: var(--text); }
+.app-card:hover { border-color: var(--gold); background: var(--gold-dim); transform: translateY(-3px); box-shadow: 0 8px 28px rgba(201,168,108,0.14); }
+.app-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.app-name { font-size: 11px; letter-spacing: 0.3px; color: var(--text-dim); text-align: center; }
+
+/* ══════ POST TAB ══════ */
+.post-container { max-width: 700px; }
+.platform-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.platform-btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font-size: 12px; font-family: var(--font-mono); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+.platform-btn:hover, .platform-btn.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+.post-textarea { width: 100%; min-height: 180px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text); font-family: var(--font-mono); font-size: 14px; line-height: 1.7; outline: none; resize: vertical; transition: border-color 0.2s; margin-bottom: 8px; }
+.post-textarea:focus { border-color: var(--gold); }
+.char-count { font-size: 12px; color: var(--text-dim); text-align: right; margin-bottom: 14px; }
+.topic-input { width: 100%; padding: 12px 16px; margin-bottom: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: var(--font-mono); font-size: 13px; outline: none; transition: border-color 0.2s; }
+.topic-input:focus { border-color: var(--gold); }
+
+/* Generated Image Preview in Post */
+.post-image-wrapper { width: 100%; max-height: 400px; border-radius: 14px; overflow: hidden; margin-bottom: 16px; display: none; border: 1px solid var(--border); background: var(--surface); position: relative; display: flex; justify-content: center; align-items: center; }
+#generatedPostImg { max-width: 100%; max-height: 400px; display: block; object-fit: contain; }
+.img-loading-overlay { position: absolute; inset: 0; background: rgba(8,8,16,0.8); display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 24px; z-index: 2; display: none; flex-direction: column; gap: 10px; }
+.img-loading-text { font-size: 12px; color: var(--text); font-family: var(--font-mono); }
+.visual-controls { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+
+.post-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.post-btn { padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 12px; transition: all 0.2s; display: flex; align-items: center; gap: 7px; letter-spacing: 0.3px; }
+.post-btn.primary { background: linear-gradient(135deg, var(--gold), #E8C07A); color: #080810; font-weight: 600; }
+.post-btn.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.post-btn.ai-magic { background: rgba(79, 195, 247, 0.1); border: 1px solid var(--cyan); color: var(--cyan); }
+.post-btn.ai-vision { background: rgba(105, 240, 174, 0.1); border: 1px solid var(--success); color: var(--success); }
+.post-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.post-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ══════ SETTINGS TAB ══════ */
+.settings-grid { max-width: 580px; display: flex; flex-direction: column; gap: 18px; }
+.setting-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; }
+.setting-card h3 { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin-bottom: 5px; color: var(--gold); }
+.setting-card p { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.55; }
+.setting-card p a { color: var(--gold); }
+.setting-input { width: 100%; padding: 11px 15px; margin-bottom: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: var(--font-mono); font-size: 13px; outline: none; transition: border-color 0.2s; cursor: pointer; }
+.setting-input:focus { border-color: var(--gold); }
+.setting-btn { padding: 9px 20px; border-radius: 9px; border: 1px solid var(--gold); background: var(--gold-dim); color: var(--gold); font-family: var(--font-mono); font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.setting-btn:hover { background: var(--gold); color: #080810; }
+.setting-btn.danger { border-color: var(--red); background: rgba(255,82,82,0.08); color: var(--red); }
+.setting-btn.danger:hover { background: var(--red); color: white; }
+
+/* ══════ VOICE ASSISTANT FLOAT ══════ */
+#voicePanel { position: fixed; bottom: 24px; right: 24px; z-index: 500; }
+.va-orb { width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, var(--cyan), #1565C0); display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; cursor: pointer; box-shadow: 0 0 32px rgba(79,195,247,0.42); transition: all 0.3s; }
+.va-orb:hover { transform: scale(1.1); }
+.va-orb.listening { animation: vaListen 1s ease-in-out infinite; background: radial-gradient(circle at 38% 32%, var(--red), #B71C1C); box-shadow: 0 0 32px rgba(255,82,82,0.42); }
+@keyframes vaListen { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.08); } }
+#vaBubble { position: absolute; bottom: 72px; right: 0; width: 270px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; backdrop-filter: blur(20px); display: none; font-size: 13px; line-height: 1.6; color: var(--text); box-shadow: 0 8px 40px rgba(0,0,0,0.45); }
+#vaBubble.show { display: block; animation: fadeIn 0.2s ease; }
+
+/* ══════ TOAST ══════ */
+#toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(20,20,32,0.95); border: 1px solid var(--border); border-radius: 10px; padding: 11px 22px; font-size: 13px; backdrop-filter: blur(20px); z-index: 9999; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.success { border-color: var(--success); color: var(--success); }
+#toast.error { border-color: var(--red); color: var(--red); }
+
+@media (max-width: 600px) {
+  .app-header { padding: 12px 16px; }
+  .nav-tabs { padding: 12px 16px 0; }
+  .tab-content { padding: 16px; }
+  .msg-bubble { max-width: 88%; }
+  .apps-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .chat-container { height: calc(100vh - 190px); }
+  #voicePanel { bottom: 16px; right: 16px; }
+  .header-user { display: none; }
+  .visual-controls { flex-direction: column; }
+  .visual-controls .topic-input { width: 100%; margin-bottom: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <div class="lock-orb" onclick="startVoiceUnlock()"><i class="fa-solid fa-lock" id="lockIcon"></i></div>
+  <div class="lock-title">ARIA</div>
+  <div class="lock-subtitle">AI Assistant Manager<br>Speak your passphrase to unlock</div>
+  <div id="voiceWave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <button class="lock-btn" onclick="startVoiceUnlock()"><i class="fa-solid fa-microphone"></i>  SPEAK TO UNLOCK</button>
+  <div id="lockStatus">Waiting for voice...</div>
+</div>
+
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-logo">ARIA</div>
+    <h2>🔐 Initial Setup</h2>
+    <p>Welcome! Set up your voice passphrase. You must speak this exact phrase every time to unlock ARIA. Choose something unique that only you know.</p>
+    <input class="setup-input" id="setupPassphrase" type="text" placeholder="Voice passphrase (e.g. aria 786 open now)" />
+    <div class="setup-hint">⚠️ Remember this exactly — you'll speak it to unlock the app each time.</div>
+    <input class="setup-input" id="setupName" type="text" placeholder="Your name (e.g. Syed)" />
+    <input class="setup-input" id="setupApiKey" type="password" placeholder="Groq API Key (optional, add later)" />
+    <div class="setup-hint">Get free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — free, no credit card needed.</div>
+    <button class="setup-btn" onclick="completeSetup()">Complete Setup →</button>
+  </div>
+</div>
+
+<div id="mainApp">
+  <header class="app-header">
+    <div class="app-logo"><div class="logo-dot"></div><span class="logo-text">ARIA</span></div>
+    <span class="header-user" id="headerUser"></span>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="toggleVA()" title="Voice Assistant"><i class="fa-solid fa-waveform-lines"></i></button>
+      <button class="icon-btn" onclick="lockApp()" title="Lock App"><i class="fa-solid fa-lock"></i></button>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('chat', this)"><i class="fa-solid fa-comment-dots"></i> AI Chat</button>
+    <button class="nav-tab" onclick="switchTab('apps', this)"><i class="fa-solid fa-grid-2"></i> Apps</button>
+    <button class="nav-tab" onclick="switchTab('post', this)"><i class="fa-solid fa-pen-to-square"></i> Post Studio</button>
+    <button class="nav-tab" onclick="switchTab('settings', this)"><i class="fa-solid fa-sliders"></i> Settings</button>
+  </nav>
+
+  <div class="tab-content active" id="tab-chat">
+    <div class="chat-container">
+      <div class="api-banner" id="apiBanner">
+        <i class="fa-solid fa-key" style="color:var(--gold);font-size:13px;flex-shrink:0;"></i>
+        <input class="api-banner-input" id="apiKeyInput" type="password" placeholder="Paste Groq API key to enable AI chat..." />
+        <button class="api-banner-btn" onclick="saveApiKey()">Save</button>
+      </div>
+      
+      <div id="chatMessages">
+        <div class="msg ai">
+          <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+          <div class="msg-bubble">Hello! I'm ARIA. I can analyze images, write social media posts, and open apps. How can I help today?</div>
+        </div>
+      </div>
+      
+      <div class="chat-input-area">
+        <div id="imagePreviewContainer">
+          <img id="imagePreview" src="" alt="Preview">
+          <button class="remove-img-btn" onclick="clearAttachment()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="chat-controls">
+          <input type="file" id="fileUpload" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+          <button class="file-btn" onclick="document.getElementById('fileUpload').click()" title="Attach Image">
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+          <button class="voice-btn" id="voiceInputBtn" onclick="toggleVoiceInput()" title="Voice Input">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <textarea id="chatInput" placeholder="Ask anything... or attach an image"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+            oninput="autoResize(this)"></textarea>
+          <button class="send-btn" onclick="sendMessage()" title="Send">
+            <i class="fa-solid fa-paper-plane-top"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-apps">
+    <div class="section-title">Social Media</div>
+    <div class="apps-grid">
+      <a class="app-card" href="https://twitter.com" target="_blank"><div class="app-icon" style="background:rgba(29,161,242,0.13);color:#1DA1F2"><i class="fa-brands fa-x-twitter"></i></div><span class="app-name">X / Twitter</span></a>
+      <a class="app-card" href="https://instagram.com" target="_blank"><div class="app-icon" style="background:rgba(228,64,95,0.13);color:#E4405F"><i class="fa-brands fa-instagram"></i></div><span class="app-name">Instagram</span></a>
+      <a class="app-card" href="https://facebook.com" target="_blank"><div class="app-icon" style="background:rgba(66,103,178,0.13);color:#4267B2"><i class="fa-brands fa-facebook"></i></div><span class="app-name">Facebook</span></a>
+      <a class="app-card" href="https://linkedin.com" target="_blank"><div class="app-icon" style="background:rgba(0,119,181,0.13);color:#0077B5"><i class="fa-brands fa-linkedin"></i></div><span class="app-name">LinkedIn</span></a>
+      <a class="app-card" href="https://tiktok.com" target="_blank"><div class="app-icon" style="background:rgba(255,0,80,0.13);color:#FF0050"><i class="fa-brands fa-tiktok"></i></div><span class="app-name">TikTok</span></a>
+      <a class="app-card" href="https://youtube.com" target="_blank"><div class="app-icon" style="background:rgba(255,0,0,0.13);color:#FF0000"><i class="fa-brands fa-youtube"></i></div><span class="app-name">YouTube</span></a>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-post">
+    <div class="post-container">
+      <div class="platform-tabs">
+        <button class="platform-btn active" onclick="selectPlatform('twitter',this)"><i class="fa-brands fa-x-twitter"></i> X / Twitter</button>
+        <button class="platform-btn" onclick="selectPlatform('instagram',this)"><i class="fa-brands fa-instagram"></i> Instagram</button>
+        <button class="platform-btn" onclick="selectPlatform('facebook',this)"><i class="fa-brands fa-facebook"></i> Facebook</button>
+        <button class="platform-btn" onclick="selectPlatform('tiktok',this)"><i class="fa-brands fa-tiktok"></i> TikTok</button>
+        <button class="platform-btn" onclick="selectPlatform('youtube',this)"><i class="fa-brands fa-youtube"></i> YouTube</button>
+      </div>
+      
+      <div class="section-title">Visual Hub (Shows First)</div>
+      
+      <div class="post-image-wrapper" id="postImageWrapper" style="display: none;">
+        <button class="remove-img-btn" onclick="clearPostImage()" style="width: 28px; height: 28px; font-size: 14px; top: 10px; right: 10px; z-index: 10;"><i class="fa-solid fa-xmark"></i></button>
+        <div class="img-loading-overlay" id="imgLoading">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span class="img-loading-text" id="imgLoadingText">Routing image...</span>
+        </div>
+        <img id="generatedPostImg" src="" alt="Post Visual">
+      </div>
+      
+      <div class="visual-controls">
+        <input class="topic-input" id="imgPrompt" placeholder="Describe an image to generate (e.g. cinematic sunset)..." style="flex: 1;" />
+        <button class="post-btn ai-magic" onclick="generateArtwork()"><i class="fa-solid fa-image"></i> Gen AI Image</button>
+        <input type="file" id="postFileUpload" accept="image/*" style="display: none;" onchange="handlePostFileUpload(event)">
+        <button class="post-btn secondary" onclick="document.getElementById('postFileUpload').click()"><i class="fa-solid fa-upload"></i> Upload</button>
+      </div>
+
+      <div class="section-title">Caption & SEO</div>
+      <textarea class="post-textarea" id="postText" placeholder="Write your post caption here, or use the buttons below to let AI write it for you..." oninput="updateCharCount()"></textarea>
+      <div class="char-count" id="charCount">0 / 280</div>
+      
+      <div class="post-actions">
+        <button class="post-btn ai-vision" id="suggestBtn" onclick="suggestFromImage()"><i class="fa-solid fa-eye"></i> Analyze Image & Suggest Post</button>
+        
+        <input class="topic-input" id="postTopic" placeholder="Or type a topic to generate without image..." style="flex: 1; margin-bottom:0; min-width: 200px;" />
+        <button class="post-btn secondary" id="genBtn" onclick="generatePost()"><i class="fa-solid fa-sparkles"></i> AI Text</button>
+        <button class="post-btn secondary" onclick="improvePost()"><i class="fa-solid fa-wand-magic-sparkles"></i> Improve</button>
+        <button class="post-btn primary" onclick="shareToApp()"><i class="fa-solid fa-share-nodes"></i> Share to App</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-settings">
+    <div class="settings-grid">
+      <div class="setting-card">
+        <h3>🔑 Groq API Key</h3>
+        <p>Stored locally on your device only.</p>
+        <input class="setting-input" id="settingsApiKey" type="password" placeholder="gsk_..." />
+        <button class="setting-btn" onclick="saveApiKeyFromSettings()">Save Key</button>
+      </div>
+      <div class="setting-card">
+        <h3>🎤 Voice Passphrase</h3>
+        <p>Change your voice unlock phrase. You must speak this exactly to unlock ARIA.</p>
+        <input class="setting-input" id="newPassphrase" type="text" placeholder="New passphrase..." />
+        <button class="setting-btn" onclick="updatePassphrase()">Update Passphrase</button>
+      </div>
+      <div class="setting-card">
+        <h3>⚠️ Reset App</h3>
+        <button class="setting-btn danger" onclick="resetApp()">Reset Everything</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="voicePanel">
+  <div id="vaBubble"></div>
+  <div class="va-orb" id="vaOrb" onclick="toggleVA()" title="Voice Assistant — tap to speak a command">
+    <i class="fa-solid fa-microphone"></i>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const state = {
+  passphrase: '', userName: '', apiKey: '',
+  ttsEnabled: true, currentPlatform: 'twitter',
+  chatHistory: [], vaListening: false, voiceInputListening: false,
+  currentAttachmentBase64: null,
+  postImageBase64: null,
+  postImageUrl: null
+};
+
+const LIMITS = { twitter:280, instagram:2200, facebook:63206, tiktok:2200, youtube:5000 };
+const PLATFORM_URL = {
+  twitter:  t => `https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}`,
+  instagram:() => 'https://www.instagram.com/',
+  facebook: t => `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(t)}`,
+  tiktok:   () => 'https://www.tiktok.com/upload',
+  youtube:  () => 'https://studio.youtube.com'
+};
+
+// ═══════════════════════════════════════════
+// INIT & SECURITY
+// ═══════════════════════════════════════════
+function init() {
+  const raw = localStorage.getItem('aria_v2');
+  if (raw) {
+    const cfg = JSON.parse(raw);
+    state.passphrase = cfg.passphrase || '';
+    state.userName   = cfg.userName   || '';
+    state.apiKey     = cfg.apiKey     || '';
+    if (state.apiKey) {
+      document.getElementById('settingsApiKey').value = state.apiKey;
+      document.getElementById('apiKeyInput').value    = state.apiKey;
+      document.getElementById('apiBanner').style.display = 'none';
+    }
+    showLock(); 
+  } else { showSetup(); }
+}
+
+function showSetup() { show('setupScreen'); hide('lockScreen'); hide('mainApp'); }
+function showLock() { show('lockScreen'); hide('setupScreen'); hide('mainApp'); state.isLocked = true; }
+function showApp() { hide('lockScreen'); hide('setupScreen'); document.getElementById('mainApp').style.display = 'flex'; state.isLocked = false; }
+function show(id) { document.getElementById(id).style.display = 'flex'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function save() { localStorage.setItem('aria_v2', JSON.stringify({ passphrase: state.passphrase, userName: state.userName, apiKey: state.apiKey })); }
+function completeSetup() {
+  const phrase = document.getElementById('setupPassphrase').value.trim().toLowerCase();
+  const name   = document.getElementById('setupName').value.trim();
+  const key    = document.getElementById('setupApiKey').value.trim();
+  if (!phrase || !name) { toast('Passphrase & Name required!', 'error'); return; }
+  state.passphrase = phrase; state.userName = name; state.apiKey = key; save(); showApp();
+}
+
+let unlockRec = null;
+function lockApp() { showLock(); toast('App locked 🔒', 'success'); }
+function startVoiceUnlock() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setLS('Speech not supported','error'); return; }
+  unlockRec = new SR(); unlockRec.lang = 'en-US'; unlockRec.continuous = false;
+  document.getElementById('voiceWave').classList.add('active');
+  setLS('Listening...');
+  unlockRec.onresult = e => {
+    const spoken = e.results[0][0].transcript.trim().toLowerCase();
+    document.getElementById('voiceWave').classList.remove('active');
+    if (spoken.includes(state.passphrase) || state.passphrase.includes(spoken)) {
+      setLS('✓ Access granted!', 'success'); setTimeout(showApp, 700);
+    } else {
+      setLS(`❌ Denied`, 'error'); setTimeout(() => setLS('Waiting...'), 2000);
+    }
+  };
+  unlockRec.onerror = e => { document.getElementById('voiceWave').classList.remove('active'); setLS(`Error. Try again.`, 'error'); };
+  unlockRec.start();
+}
+function setLS(msg, type) { const el = document.getElementById('lockStatus'); el.textContent = msg; el.className = type || ''; }
+
+// ═══════════════════════════════════════════
+// CHAT & FILE UPLOAD
+// ═══════════════════════════════════════════
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Only images supported.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    state.currentAttachmentBase64 = event.target.result;
+    document.getElementById('imagePreview').src = state.currentAttachmentBase64;
+    document.getElementById('imagePreviewContainer').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearAttachment() {
+  state.currentAttachmentBase64 = null;
+  document.getElementById('imagePreviewContainer').style.display = 'none';
+  document.getElementById('fileUpload').value = '';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text && !state.currentAttachmentBase64) return;
+  if (!state.apiKey) { toast('Add your Groq API key first!', 'error'); return; }
+
+  input.value = ''; input.style.height = '50px';
+  addMsg('user', text, state.currentAttachmentBase64);
+  const typing = addTyping();
+  
+  let modelToUse = 'llama-3.1-8b-instant';
+  let messageContent = text || "What is in this image?";
+  
+  if (state.currentAttachmentBase64) {
+    modelToUse = 'llama-3.2-11b-vision-preview'; 
+    messageContent = [
+      { type: "text", text: messageContent },
+      { type: "image_url", image_url: { url: state.currentAttachmentBase64 } }
+    ];
+  }
+
+  state.chatHistory.push({ role: 'user', content: messageContent });
+  clearAttachment();
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}` },
+      body: JSON.stringify({
+        model: modelToUse,
+        messages: [{ role: 'system', content: `You are ARIA, a highly capable AI assistant.` }, ...state.chatHistory],
+        max_tokens: 1024, temperature: 0.7
+      })
+    });
+
+    typing.remove();
+    if (!res.ok) { const err = await res.json(); addMsg('ai', `API Error: ${err.error?.message}`); return; }
+
+    const data  = await res.json();
+    const reply = data.choices[0].message.content;
+    
+    state.chatHistory[state.chatHistory.length - 1] = { role: 'user', content: text || "Uploaded an image." };
+    state.chatHistory.push({ role: 'assistant', content: reply });
+    if (state.chatHistory.length > 10) state.chatHistory = state.chatHistory.slice(-10);
+
+    addMsg('ai', reply);
+  } catch (err) { 
+    typing.remove(); 
+    addMsg('ai', `Network block detected. Your device blocked the chat connection. Try a VPN or local server app.`); 
+  }
+}
+
+function addMsg(role, text, imgSrc = null) {
+  const wrap = document.getElementById('chatMessages');
+  const d = document.createElement('div'); d.className = `msg ${role}`;
+  let imgHtml = imgSrc ? `<img src="${imgSrc}" class="msg-img">` : '';
+  let txtHtml = text ? `${esc(text).replace(/\n/g,'<br>')}` : '';
+  d.innerHTML = `<div class="msg-avatar"><i class="fa-solid ${role==='ai'?'fa-robot':'fa-user'}"></i></div><div class="msg-bubble">${txtHtml}${imgHtml}</div>`;
+  wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight; return d;
+}
+
+function addTyping() {
+  const wrap = document.getElementById('chatMessages');
+  const d = document.createElement('div'); d.className = 'msg ai';
+  d.innerHTML = `<div class="msg-avatar"><i class="fa-solid fa-robot"></i></div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight; return d;
+}
+
+// ═══════════════════════════════════════════
+// POST STUDIO (Vision, Gen & Share)
+// ═══════════════════════════════════════════
+function selectPlatform(platform, btn) {
+  state.currentPlatform = platform;
+  document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); updateCharCount();
+}
+
+function updateCharCount() {
+  const t = document.getElementById('postText').value;
+  const lim = LIMITS[state.currentPlatform];
+  const el = document.getElementById('charCount');
+  el.textContent = `${t.length} / ${lim}`; el.style.color = t.length > lim ? 'var(--red)' : 'var(--text-dim)';
+}
+
+function handlePostFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Only image files supported.', 'error'); return; }
+  
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    state.postImageBase64 = event.target.result;
+    state.postImageUrl = null;
+    document.getElementById('generatedPostImg').src = state.postImageBase64;
+    document.getElementById('postImageWrapper').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPostImage() {
+  state.postImageBase64 = null;
+  state.postImageUrl = null;
+  document.getElementById('postImageWrapper').style.display = 'none';
+  document.getElementById('generatedPostImg').src = '';
+  document.getElementById('postFileUpload').value = '';
+}
+
+// ══════════════════════════════════════════════════════════
+// UPGRADED AI IMAGE GENERATOR - Uses Native Fallback Routing
+// ══════════════════════════════════════════════════════════
+function generateArtwork() {
+  const rawPrompt = document.getElementById('imgPrompt').value.trim() || 'A high quality, cinematic and viral aesthetic graphic';
+  const imgWrapper = document.getElementById('postImageWrapper');
+  const imgEl = document.getElementById('generatedPostImg');
+  const overlay = document.getElementById('imgLoading');
+  const textFeedback = document.getElementById('imgLoadingText');
+  
+  imgWrapper.style.display = 'flex';
+  overlay.style.display = 'flex';
+  state.postImageBase64 = null; 
+  state.postImageUrl = null;
+  textFeedback.textContent = "Connecting to server...";
+
+  const seed = Math.floor(Math.random() * 1000000);
+  const cleanPrompt = encodeURIComponent(rawPrompt);
+  
+  // URL 1: Direct approach
+  const primaryUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?seed=${seed}&width=1024&height=1024&nologo=true`;
+  // URL 2: Proxy approach (bypass ISP block)
+  const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(primaryUrl)}`;
+
+  imgEl.onload = () => {
+    overlay.style.display = 'none';
+    state.postImageUrl = imgEl.src;
+    toast('Visual ready! ✨', 'success');
+  };
+
+  imgEl.onerror = () => {
+    // If the primary fails due to Android WebView block or ISP...
+    if (imgEl.src === primaryUrl) {
+      textFeedback.textContent = "Bypassing block...";
+      imgEl.src = proxyUrl;
+    } else {
+      overlay.style.display = 'none';
+      toast('Network severely restricted. Please try a VPN.', 'error');
+    }
+  };
+
+  // Start with primary
+  imgEl.src = primaryUrl;
+}
+
+// VISION AI: Generate Title, Description & Tags from Image
+async function suggestFromImage() {
+  if (!state.apiKey) { toast('Add Groq API key first!', 'error'); return; }
+  const imgEl = document.getElementById('generatedPostImg');
+  const hasImage = document.getElementById('postImageWrapper').style.display === 'flex' && imgEl.src;
+  
+  if (!hasImage) { toast('Upload or generate an image first!', 'error'); return; }
+
+  const btn = document.getElementById('suggestBtn');
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...'; btn.disabled = true;
+
+  try {
+    let imageContent;
+    if (state.postImageBase64) {
+      imageContent = { url: state.postImageBase64 };
+    } else if (state.postImageUrl) {
+      imageContent = { url: state.postImageUrl };
+    } else {
+      throw new Error("No image data found");
+    }
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.2-11b-vision-preview',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: `You are an expert social media manager. Look closely at this image. Write a highly engaging Title, a captivating Description, and 5-10 trending tags optimized specifically for ${state.currentPlatform}. Format your response cleanly so I can copy and paste it.` },
+            { type: 'image_url', image_url: imageContent }
+          ]
+        }],
+        max_tokens: 600, temperature: 0.7
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    
+    document.getElementById('postText').value = data.choices[0].message.content.trim();
+    updateCharCount();
+    toast('SEO & Caption generated! ✨', 'success');
+  } catch (err) {
+    console.error(err);
+    toast('Error analyzing image. Check API or Network.', 'error');
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-eye"></i> Analyze Image & Suggest Post'; btn.disabled = false;
+  }
+}
+
+async function generatePost() {
+  if (!state.apiKey) { toast('Add Groq API key first!', 'error'); return; }
+  const topic = document.getElementById('postTopic').value.trim() || 'something engaging';
+  const btn = document.getElementById('genBtn'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...'; btn.disabled = true;
+  try {
+    const lim = Math.min(LIMITS[state.currentPlatform], 500);
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'user', content: `Write a viral, authentic ${state.currentPlatform} post about: "${topic}". Max ${lim} characters. Return ONLY the post text.` }],
+        max_tokens: 350
+      })
+    });
+    const data = await res.json();
+    document.getElementById('postText').value = data.choices?.[0]?.message?.content?.trim() || '';
+    updateCharCount(); toast('Text generated!', 'success');
+  } catch { toast('Device blocked connection to API.', 'error'); }
+  finally { btn.innerHTML = '<i class="fa-solid fa-sparkles"></i> AI Text'; btn.disabled = false; }
+}
+
+async function improvePost() {
+  if (!state.apiKey) return;
+  const text = document.getElementById('postText').value.trim();
+  if (!text) { toast('Write something first!', 'error'); return; }
+  toast('Improving...', '');
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'user', content: `Improve this ${state.currentPlatform} post to be more engaging and viral:\n\n"${text}"\n\nReturn ONLY the improved post.` }],
+        max_tokens: 350
+      })
+    });
+    const data = await res.json();
+    document.getElementById('postText').value = data.choices?.[0]?.message?.content?.trim() || text;
+    updateCharCount(); toast('Improved! ✨', 'success');
+  } catch { toast('Device blocked connection to API.', 'error'); }
+}
+
+async function shareToApp() {
+  const text = document.getElementById('postText').value.trim();
+  const hasImage = document.getElementById('postImageWrapper').style.display === 'flex';
+  
+  if (!text && !hasImage) { toast('Generate an image or text first!', 'error'); return; }
+
+  if (navigator.share) {
+    let filesArray = [];
+    try {
+      if (hasImage) {
+        toast('Preparing file for app...', '');
+        let blob;
+        
+        if (state.postImageBase64) {
+          const res = await fetch(state.postImageBase64);
+          blob = await res.blob();
+        } else if (state.postImageUrl) {
+          try {
+            const res = await fetch(state.postImageUrl);
+            blob = await res.blob();
+          } catch (e) {
+            console.warn("Could not fetch image blob, sharing URL text instead.");
+          }
+        }
+
+        if (blob) {
+          const file = new File([blob], 'aria_artwork.jpg', { type: 'image/jpeg' });
+          filesArray.push(file);
+        }
+      }
+      
+      let shareData = { title: 'ARIA AI Post', text: text };
+      if (filesArray.length > 0) shareData.files = filesArray;
+      else if (state.postImageUrl) shareData.text = text + '\n\n' + state.postImageUrl;
+
+      await navigator.share(shareData);
+      toast('Sent to app! ✓', 'success');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        toast('Native file share blocked. Sharing text only...', 'error');
+        navigator.share({ title: 'ARIA AI Post', text: text + (state.postImageUrl ? '\n\n' + state.postImageUrl : '') });
+      }
+    }
+  } else {
+    if (text) { window.open(PLATFORM_URL[state.currentPlatform](text), '_blank'); toast('Opened web platform! ✓', 'success'); } 
+    else { toast('Web browser sharing requires text.', 'error'); }
+  }
+}
+
+// ═══════════════════════════════════════════
+// UTILS & SETTINGS
+// ═══════════════════════════════════════════
+function saveApiKeyFromSettings() { const k = document.getElementById('settingsApiKey').value.trim(); if(k) { state.apiKey=k; save(); toast('Saved','success');} }
+function saveApiKey() { const k = document.getElementById('apiKeyInput').value.trim(); if(k) { state.apiKey=k; document.getElementById('apiBanner').style.display='none'; save(); toast('Saved','success');} }
+function updatePassphrase() { const p = document.getElementById('newPassphrase').value.trim().toLowerCase(); if(p) {state.passphrase=p; save(); toast('Updated','success');} }
+function resetApp() { if(confirm('Erase all data?')) { localStorage.clear(); location.reload(); } }
+function switchTab(id, btn) { document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); document.getElementById(`tab-${id}`).classList.add('active'); }
+function autoResize(el) { el.style.height = '50px'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
+function esc(t) { return t?String(t).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>'):''; }
+function toast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = `show ${type||''}`; setTimeout(()=>t.className='', 2800); }
+
+init();
+</script>
+</body>
+</html>

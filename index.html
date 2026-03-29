@@ -407,12 +407,12 @@ function init() {
       document.getElementById('apiKeyInput').value    = state.apiKey;
       document.getElementById('apiBanner').style.display = 'none';
     }
-    showLock(); 
+    showApp(); 
   } else { showSetup(); }
 }
 
 function showSetup() { show('setupScreen'); hide('lockScreen'); hide('mainApp'); }
-function showLock() { show('lockScreen'); hide('setupScreen'); hide('mainApp'); state.isLocked = true; }
+function showApp() { show('lockScreen'); hide('setupScreen'); hide('mainApp'); state.isLocked = true; }
 function showApp() { hide('lockScreen'); hide('setupScreen'); document.getElementById('mainApp').style.display = 'flex'; state.isLocked = false; }
 function show(id) { document.getElementById(id).style.display = 'flex'; }
 function hide(id) { document.getElementById(id).style.display = 'none'; }
